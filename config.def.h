@@ -10,3 +10,7 @@ static const char *colorname[NUMCOLS] = {
 
 /* treat a cleared input like a wrong password (color) */
 static const int failonclear = 1;
+
+/* treat pressing control keys while input is cleared like a wrong
+ * password (effective only when failonclear is set) */
+static const int failonctrlkey = 1;
