@@ -342,8 +342,6 @@ int
 main(int argc, char **argv) {
 	struct xrandr rr;
 	struct lock **locks;
-	struct passwd *pwd;
-	struct group *grp;
 	uid_t duid;
 	gid_t dgid;
 	const char *hash;
@@ -358,17 +356,9 @@ main(int argc, char **argv) {
 		usage();
 	} ARGEND
 
-	/* validate drop-user and -group */
 	errno = 0;
-	if (!(pwd = getpwnam(user)))
-		die("slock: getpwnam %s: %s\n", user,
-		    errno ? strerror(errno) : "user entry not found");
-	duid = pwd->pw_uid;
-	errno = 0;
-	if (!(grp = getgrnam(group)))
-		die("slock: getgrnam %s: %s\n", group,
-		    errno ? strerror(errno) : "group entry not found");
-	dgid = grp->gr_gid;
+	duid = getuid();
+	dgid = getgid();
 
 #ifdef __linux__
 	dontkillme();
@@ -376,12 +366,6 @@ main(int argc, char **argv) {
 
 	hash = gethash();
 	errno = 0;
-	if (!crypt("", hash))
-		die("slock: crypt: %s\n", strerror(errno));
-
-	if (!(dpy = XOpenDisplay(NULL)))
-		die("slock: cannot open display\n");
-
 	/* drop privileges */
 	if (setgroups(0, NULL) < 0)
 		die("slock: setgroups: %s\n", strerror(errno));
@@ -389,6 +373,12 @@ main(int argc, char **argv) {
 		die("slock: setgid: %s\n", strerror(errno));
 	if (setuid(duid) < 0)
 		die("slock: setuid: %s\n", strerror(errno));
+
+	if (!crypt("", hash))
+		die("slock: crypt: %s\n", strerror(errno));
+
+	if (!(dpy = XOpenDisplay(NULL)))
+		die("slock: cannot open display\n");
 
 	/* check for Xrandr support */
 	rr.active = XRRQueryExtension(dpy, &rr.evbase, &rr.errbase);
