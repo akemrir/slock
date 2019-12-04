@@ -14,3 +14,6 @@ static const int failonclear = 1;
 /* treat pressing control keys while input is cleared like a wrong
  * password (effective only when failonclear is set) */
 static const int failonctrlkey = 1;
+
+/* time in seconds before the monitor shuts down (-1 = do not set dpms) */
+static const int dpmstime = 10;

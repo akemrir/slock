@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/extensions/dpms.h>
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -305,6 +306,38 @@ usage(void)
 	die("usage: slock [-v] [cmd [arg ...]]\n");
 }
 
+static int
+dpms(Display *dpy, int action)
+{
+	static CARD16 standby, suspend, off, power_level;
+	static BOOL state;
+
+	if (dpmstime < 0)
+		return 0;
+
+	if (action) {
+		/* reset DPMS values to inital ones */
+		if (state)
+			DPMSEnable(dpy);
+		else
+			DPMSDisable(dpy);
+		DPMSSetTimeouts(dpy, standby, suspend, off);
+	} else {
+		if (!DPMSCapable(dpy))
+			return 1;
+		if (!DPMSInfo(dpy, &power_level, &state))
+			return 2;
+		if (!DPMSGetTimeouts(dpy, &standby, &suspend, &off))
+			return 3;
+		if (!DPMSEnable(dpy))
+			return 4;
+		if (!DPMSSetTimeouts(dpy, dpmstime, dpmstime, dpmstime))
+			return 5;
+	}
+	XSync(dpy, 0);
+	return 0;
+}
+
 int
 main(int argc, char **argv) {
 	struct xrandr rr;
@@ -315,7 +348,7 @@ main(int argc, char **argv) {
 	gid_t dgid;
 	const char *hash;
 	Display *dpy;
-	int s, nlocks, nscreens;
+	int s, nlocks, nscreens, ret;
 
 	ARGBEGIN {
 	case 'v':
@@ -376,6 +409,9 @@ main(int argc, char **argv) {
 	if (nlocks != nscreens)
 		return 1;
 
+	if ((ret = dpms(dpy, 0)) != 0)
+		fprintf(stderr, "slock: DPMS failed: %d\n", ret);
+
 	/* run post-lock command */
 	if (argc > 0) {
 		switch (fork()) {
@@ -392,6 +428,8 @@ main(int argc, char **argv) {
 
 	/* everything is now blank. Wait for the correct password */
 	readpw(dpy, &rr, locks, nscreens, hash);
+
+	dpms(dpy, 1);
 
 	return 0;
 }
